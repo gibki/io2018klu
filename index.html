@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>OI2018 Problem 1 - Club Members 2 (KLU)</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Zilla+Slab" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/themes/prism.min.css" />
+  <style>
+  body {
+    font-family: 'Zilla Slab', serif;
+    font-size: larger;
+    background-color: #F8FAFC;
+    color: #444444;
+    padding-left: 20%;
+    padding-right: 20%;
+  }
+  a {
+    color: #466DB2;
+  }
+  </style>
+</head>
+<body>
+  <h1>Problem 1</h1>
+  <h1><a href="https://szkopul.edu.pl/problemset/problem/iNO3dMisUj2wQ_ywbKfWLlpi/site/?key=statement">Club Members 2 (KLU)</a></h1>
+
+  <h2>Introduction</h2>
+
+  <p>This is the third problem from 2018 Polish Computer Science Olympics that we are solving. Here are the other two articles: <a href="https://gibki.github.io/io2018par">Problem 3 - Pair of Necklaces https://gibki.github.io/io2018par</a> and <a href="https://gibki.github.io/io2018rob">Problem 5 - Robby the Little Robot https://gibki.github.io/io2018rob</a>.</p>
+
+  <p>The repository with all the code and example datasets can be found here: <a href="https://github.com/gibki/io2018klu">https://github.com/gibki/io2018klu</a>.</p>
+
+  <h2>Problem Description</h2>
+
+  <p>There is going to be a round-table discussion among the members of the titular Club. Even though the Issue of Utmost Importance is going to be discussed, not every member might show up.</p>
+  <p>The members want to first discuss the issue in two separate groups. To avoid commotion each group consists of members sitting on consecutive chairs. Think about slicing a pie properly, one group is the slice you cut out and the other group is the rest of the pie.</p>
+  <p>Since this is the Byteotyan Discussion Club no one is actually interested in splitting into groups, they would rather calculate how many different ways such a split can be accomplished. Obviously not all splits can be considered good or the question would be too simple.</p>
+  <p>Each member of the club has opinions on previously discussed topics. Members want the groups to be fair, meaning that if one group has a member with some opinion, the other group has to have one as well. We don't need every opinion to be represented - if every member that showed up has the same opinion on one of the questions, all splits are valid with regard to this particular question.</p>
+  <p>As always going through the example should help us visualize the problem.</p>
+
+  <h2>Decoding the data</h2>
+
+  <p>First line of the input is two integers separated by a single space, \(n\) and \(m\), the total number of different issues discussed previously and the number of members that showed up. The second line is \(m\) integers separated by single space, the opinions of each member around the table.</p>
+  <p>The first issue is decoding the answers. If we convert each number to binary, we get a sequence of \(n\) ones and zeroes representing the answers to each of the \(n\) questions. The example given looks as follows:</p>
+  <pre class=" language-python"><code class=" language-python">
+  4 5
+  1 10 0 11 3
+
+  </code></pre>
+  <p>Let's convert the answers to binary:</p>
+  <pre class=" language-python"><code class=" language-python">
+  Member  Decimal  Binary
+  0       1        0001
+  1       10       1010
+  2       0        0000
+  3       11       1011
+  4       3        0011
+  </code></pre>
+  <p>For a reason that should become clear soon, let's read the binary number from right to left. So the answers are as follows:</p>
+  <pre class=" language-python"><code class=" language-python">
+  Member  Question  0    1    2    3
+  0                 Yes  No   No   No
+  1                 No   Yes  No   Yes
+  2                 No   No   No   No
+  3                 Yes  Yes  No   Yes
+  4                 Yes  Yes  No   No
+  </code></pre>
+  <p>Let's try splitting them up. Remeber that the members are sitting at a round table, so members 0 and 4 are sitting next to each other. We can make the following splits:</p>
+  <pre class=" language-python"><code class=" language-python">
+  First group  Second group  Good?
+  0            1 2 3 4       No
+  1            2 3 4 0       No
+  2            3 4 0 1       No
+  3            4 0 1 2       No
+  4            0 1 2 3       No
+  0 1          2 3 4         Yes
+  1 2          3 4 0         No
+  2 3          4 0 1         Yes
+  3 4          0 1 2         No
+  4 0          1 2 3         No
+  </code></pre>
+  <p>Since we don't care which group is "first" that's all the unique splits. Which ones are good? Leaving one member all by himself is never going to work. Out of the other five splits, first group \([0, 1]\) second group \([2, 3, 4]\) is a good split and first group \([2, 3]\) second group \([4, 0, 1]\) is good as well.</p>
+  <p>Split \([1, 2]\) and \([3, 4, 0]\) is bad because, for example, nobody in the second group answered question 0 the same way as member 1. Split \([3, 4]\) and \([0, 1, 2]\) is bad because, for example, nobody in the first group answered question 1 as member 2. You can check the last split for yourself.</p>
+  <p>Take notice that even if nobody in group \([1, 2]\) answered "Yes" to question number 2 it's not a problem, since nobody in the group \([3, 4, 0]\) gave that answer as well.</p>
+  <p>With that exhaustive check we conclude that the answer to the example dataset is 2 possible splits, and here's a simple program that reads in properly formated data and prints it back out (file <i>klu0.py</i>):</p>
+  <pre class=" language-python"><code class=" language-python">
+  n, m = [int(x) for x in input().split()]
+  a = [int(x) for x in input().split()]
+
+  print(n, m)
+  print(a)
+  </code></pre>
+
+  <h2>Checking all the splits</h2>
+
+  <p>First version of the algorithm we will write will do exactly what we did in the example - iterate over the possible splits and count good ones.</p>
+  <p>First thing is deciding how are we going to identify a split. A natural idea is to specify between which seats do we "cut" the table. If we imagine that we are cutting only to the middle and not completely across, two cuts will split the table into two continous sections. Since we need to number the spaces between seats, let's use 0 for the space between seats \(m-1\) and 0. Cut at position 2 would be between seats 1 and 2. Doing it this way means that a split \((p, q)\) has seats <i>range(p, q)</i> in one of the groups.</p>
+  <p>To generate all the unique splits we just go through every combination of \((p, q)\) where \(p < q\):</p>
+  <pre class=" language-python"><code class=" language-python">
+  def generate_splits(members):
+      for first_split in range(members):
+          for second_split in range(first_split + 1, members):
+
+              first_group = range(first_split, second_split)
+              second_group = [x % members for x in range(second_split, first_split + members)]
+
+              yield first_group, second_group
+  </code></pre>
+  <p>Getting the list of members for the first group is easy, but the second group might loop around the table. The <i>modulo</i> operator comes in handy again.</p>
+  <p>After we have all the splits in this form, we will need to check what each group thinks of each question. Even though the questions have only two answers, Yes or No, a group can have a third "answer", Mixed, meaning representatives of both views are in the group. With three possible views we can just compare them directly. Obviously a group where everybody says Yes is not going to work with a group where everybody says No. But if one group says Yes and the other group is Mixed we also know that this split is no good, as the first group lacks a representative that answered No.</p>
+  <p>So now we need to extract the answer to each question from it's encoded form. There are a few ways to do this, but the one I like involves the <i>modulo</i> operator and <i>bit-shifting</i>.</p>
+  <p>Say our answer is encoded in some number \(a\). You might remember that I wanted to number the questions right to left. So the answer to question 0 is encoded in the very last bit of our number. But that's just \(a \text{ (mod }2)\), if the number is divisible by two it's last bit is 0, the answer is No. If it's not divisible by 2 it's last bit is 1, the answer is Yes.</p>
+  <p>To get to the other answers we first need to "shift" the bits to the right. This is actually really easy to visualize:</p>
+  <pre class=" language-python"><code class=" language-python">
+  number     1100110010
+  0 shifts   1100110010
+  1 shift     110011001
+  2 shifts     11001100
+  3 shifts      1100110
+
+  ...
+
+  </code></pre>
+  <p>With each shift we simply drop the last bit and "shift" the rest right. So our function to extract the answer would look something like this:</p>
+  <pre class=" language-python"><code class=" language-python">
+  def decode_answer(question, encoded_answer):
+      return bool((encoded_answer >> question) % 2)
+  </code></pre>
+  <p>Bit shifting right in Python has it's own operator <i>>></i>. If you've never heard of bit shifts this operation might seem rather arbitrary. It's actually really easy to implement on the processor level, with physical wires. The reason why it's usefull is that mathematically shifting once right is division by two. Shifting once left multiplies the number by 2. This function does the exact same thing:</p>
+  <pre class=" language-python"><code class=" language-python">
+  def decode_answer(question, encoded_answer):
+      return bool((encoded_answer // 2 ** question) % 2)
+  </code></pre>
+  <p>If you number the questions left to right this expression gets slightly messy, so that's why we did it backwards. If you are interested here's another way to do this with bitwise operations:</p>
+  <pre class=" language-python"><code class=" language-python">
+  def decode_answer(question, encoded_answer):
+      return bool(encoded_answer & (1 << question))
+  </code></pre>
+  <p>Let's not try anything fancy with computing the view of a group, this will work:</p>
+  <pre class=" language-python"><code class=" language-python">
+  def group_answer(question, group):
+      has_yes = False
+      has_no = False
+      for member in group:
+          if decode_answer(question, a[member]):
+              has_yes = True
+          else:
+              has_no = True
+          if has_yes and has_no:
+              return 'MIXED'
+
+      if has_yes:
+          return 'YES'
+      return 'NO'
+  </code></pre>
+  <p>And now to put it all together (file <i>klu1.py</i>):</p>
+  <pre class=" language-python"><code class=" language-python">
+  n, m = [int(x) for x in input().split()]
+  a = [int(x) for x in input().split()]
+
+
+  def decode_answer(question_number, encoded_answer):
+      return bool((encoded_answer >> question_number) % 2)
+
+  def group_view(question, encoded_group_views):
+      has_yes = False
+      has_no = False
+      for encoded_member_view in encoded_group_views:
+          if decode_answer(question, encoded_member_view):
+              has_yes = True
+          else:
+              has_no = True
+
+          if has_yes and has_no:
+              return 'MIXED'
+
+      if has_yes:
+          return 'YES'
+      return 'NO'
+
+
+  def generate_splits(members):
+      for first_split in range(members):
+          for second_split in range(first_split + 1, members):
+
+              first_group = [x % members for x in range(first_split, second_split)]
+              second_group = [x % members for x in range(second_split, first_split + members)]
+
+              yield first_group, second_group
+
+
+  number_of_splits = 0
+
+  for first_group, second_group in generate_splits(m):
+      first_group_encoded_views = [a[i] for i in first_group]
+      second_group_encoded_views = [a[i] for i in second_group]
+
+      all_questions_valid = True
+      for question in range(n):
+          all_questions_valid = all_questions_valid and \
+              group_view(question, first_group_encoded_views) == group_view(question, second_group_encoded_views)
+
+      if all_questions_valid:
+          number_of_splits += 1
+
+  print(number_of_splits)
+
+  </code></pre>
+  <p>To use the same symbols as the problem description, \(n\) stands for the number of questions and \(m\) stands for the number of members present, so this algorithm is \(O(nm^2)\). If we want to improve we will have to figure out a way to not inspect all the possible splits.</p>
+
+  <h2>A simpler problem</h2>
+
+  <p>To start on our way to a proper solution let's first consider a similar but simpler problem. Let's say the members only discussed one question before and want to count the possible splits based just on that single question.</p>
+  <p>Finding all the good splits might not be that easy, but since we can calculate how many possible splits there are, \({m(m-1)} \over 2\), we may as well count how many splits are bad. We will also use a mental arithmetics trick common for problems like this. To simplify, we will count all the bad splits that start at some position \(p\), and do that for every position. This way we count each bad split exactly twice, once for each end, so we can just divide whatever answer we come up with by 2 to arrive at the correct amount of bad splits.</p>
+  <p>So let's say we are counting bad splits that start at position \(p\). If everyone answered the same, there are 0 bad splits. But as soon as we have two different answers to a question, at least two splits are bad, \((p, p+1)\) and \((p-1, p)\), because they isolate one member. If that member answered YES the other group could have only answered MIXED or NO.</p>
+  <p>What if member \(p+1\) answered the same as member \(p\)? Same reasoning applies, isolating a group with only one answer renders the split \((p, p+2)\) bad because we know there are two different answers somewhere at the table. Same goes for member \(p+2\), \(p+3\) until we finally find a different answer.</p>
+  <p>So if we count how many members in a row answered the same, we know at least this many splits are bad. Let's take a look at the example dataset if the only question was question number 0:</p>
+  <pre class=" language-python"><code class=" language-python">
+  1 5
+  1 0 0 1 1
+  </code></pre>
+  <p>Let's look at position \(p=0\). Member at seat 0 gave the answer YES and there is only one member in a row with the same view when we go right for 1 bad split. The member at seat 4 gave the answer YES and there are two members with the same view in a row when we go left, seats 4 and 3, for 2 bad splits.</p>
+  <p>So there are at least 3 bad splits starting at position 0. Actually, there are no more bad splits, all the other splits have to be good. The reasoning is very simple. Let's go right around the table counting the bad splits until we find the first member that gave a different answer. From this point on, no matter how many more members we add to this group, it's view has to be MIXED. If the other group is MIXED as well the split is good. If the other group is not MIXED they all gave the same answer, but that's the same answer that member at seat \(p-1\) gave. We've already counted all those splits as bad by going left.</p>
+  <p>There is actually one edge case we need to be careful of. The reasoning above is sound, but lets perform the same calculation for position \(p=1\).</p>
+  <p>The member at seat 1 gave the answer NO and there are two members with the same view in a row when we go right. The member at seat 0 gave the answer YES and there are three members with the same view in row when we go left for a total of 5 bad splits, but there are only 4 possible splits starting at position 1. The edge case is when everyone that gave the same answer is seating next to each other, splitting the table into exactly two groups. Our reasoning about all the other groups being good was correct, in this case there are simply no good groups. But when counting bad splits our calculation is off by one when the answers split the table into exactly two groups like this and we try to count bad splits at the boundary between those groups. We've counted the split \((1, 3)\) twice here when counting for position \(p=1\), and then twice more when counting for position \(p=3\). There are many ways to handle this edge case, but the most useful one for later will be to just limit the sum of bad splits at each position to \(m-1\).</p>
+
+  <h2>Solving the simpler problem</h2>
+
+  <p>To actually perform the calculation we will compute two lists, one to count bad splits to the right of each seat, and one to the left of each seat. Let's ignore that the table is round at first. When counting to the right, we start at position \(p=0\) and find the first different answer at some position \(q\). We know that the bad split count for position 0 is \(q-p=q\), but we also know the answer for each of the positions along the way. For position 1 it's \(q-1\), for position 2 it's \(q-2\) etc. So we move on to position \(q\) and start the search from there. In the code form:</p>
+  <pre class=" language-python"><code class=" language-python">
+  def count_bad_splits(answers):
+      counts = []
+      section_start = 0
+
+      while section_start < len(answers):
+          section_end = section_start + 1
+          while section_end < len(answers) and answers[section_start] == answers[section_end]:
+              section_end += 1
+
+          counts += reversed(range(1, 1 + section_end - section_start))
+          section_start = section_end
+
+      if counts[0] == len(answers):
+          return len(answers) * [0]
+
+      return counts
+  </code></pre>
+  <p>If all the answers are the same we've found only one section and our <i>counts</i> list looks like this: \([n, n-1, ..., 1]\). We handle that edge case by forcefully returning a list of only 0s, since there are no bad splits.</p>
+  <p>Let's take a look at the example dataset if the only question was question 0. We would compute the following list:</p>
+  <pre class=" language-python"><code class=" language-python">
+  answers   1 0 0 1 1
+
+  counts   1 2 1 2 1
+  </code></pre>
+  <p>Because the table is round, these values would be correct only when the answers at seats 0 and 4 are different. In this case they are not, so when we were counting seats with the same answer to the right of position 3 and 4 we've missed seat 0. We've already calculated how many seats we've missed, that's the first number of our list, 1. So the correct values are:</p>
+  <pre class=" language-python"><code class=" language-python">
+  answers   1 0 0 1 1
+
+  counts   1 2 1 3 2
+  </code></pre>
+  <p>And to handle that case in our function we add the following:</p>
+  <pre class=" language-python"><code class=" language-python">
+  def count_bad_splits(answers):
+      range_start = 1
+      ...
+
+      while section_start < len(answers):
+
+          ...
+
+          if section_end == len(answers) and answers[0] == answers[-1] and len(counts) > 0:
+              range_start += counts[0]
+
+          counts += reversed(range(range_start, range_start + section_end - section_start))
+          ...
+
+      ...
+
+  </code></pre>
+  <p>We only need to change anything if we've reached the end of the list. Two edge cases intersect here. If every answer is the same the <i>counts</i> list is empty and we don't have to do anything, our other edge case handler will take care of this situation. In the other case we want to interfere when those values at the start and at the end of our answers list are the same. We need the same amount of counts out of our <i>range</i> call, but shifted.</p>
+  <p>To count the bad splits left we can use the same algorithm if we reverse the list. We would get:</p>
+  <pre class=" language-python"><code class=" language-python">
+   1 1 0 0 1
+
+  2 1 2 1 1
+  </code></pre>
+  <p>The values at seat 0 and 4 are different so we've missed 2 seats when counting for position 4. The corrected result:</p>
+  <pre class=" language-python"><code class=" language-python">
+   1 1 0 0 1
+
+  2 1 2 1 3
+  </code></pre>
+  <p>But this result gives us counts for positions in the order \([0, 4, 3, 2, 1]\) so we need to reverse it and "shift" it one position to the right:</p>
+  <pre class=" language-python"><code class=" language-python">
+  result    2 1 2 1 3
+  reversed  3 1 2 1 2
+  shifted   2 3 1 2 1
+  </code></pre>
+  <p>In code form:</p>
+  <pre class=" language-python"><code class=" language-python">
+
+  ...
+
+  bad_splits_right = count_bad_splits(answers)
+  bad_splits_left_tangled = list(reversed(count_bad_splits(list(reversed(answers)))))
+  bad_splits_left = [bad_splits_left_tangled[-1]] + bad_splits_left_tangled[:-1]
+
+  ...
+
+  </code></pre>
+  <p>At first glance it would seem that we can just add all of those values and get the count of bad splits, so why do we bother manipulating the second list at all? It will be much more useful when we try to move to problems with more questions, but for now it will handle the edge case for us. Our results are:</p>
+  <pre class=" language-python"><code class=" language-python">
+  answers   1 0 0 1 1
+
+  right    1 2 1 3 2
+  left     2 3 1 2 1
+  sum      3 5 2 5 3
+  </code></pre>
+  <p>Notice that for positions 1 and 3 we got the result of 5 bad splits starting there, when there are only 4 splits total that start at this position. This is the edge case we were talking about before. As we've said, to handle it we will just limit every sum to \(m-1=4\) before summing up the values of our list:</p>
+  <pre class=" language-python"><code class=" language-python">
+  ...
+
+  bad_splits_total = sum([min(a + b, m - 1) for a, b in zip(bad_splits_left, bad_splits_right)]) // 2
+  good_splits = m * (m - 1) // 2 - bad_splits_total
+
+  ...
+  </code></pre>
+  <p>We get \(3 + 4 + 2 + 4 + 3 = 16\) counted bad splits, with every bad split counted twice the final result is 8 bad splits. Total number of splits is \({m(m-1) \over 2} = 10\) so we have calculated that there are 2 good splits. You can manually confirm that those are \((0, 2)\) and \((2, 4\)).</p>
+
+  <h2>Combining the results</h2>
+
+  <p>The reason we really bothered with aligning the second list is combining the results from different questions. Suppose we have two questions now. If we simply calculate how many good or bad splits each question gives us, it's not obvious at all how to combine them. We can't just add the sums as some splits might be already counted as bad by both.</p>
+  <p>We can however notice that if at some position \(p\) we get \(a\) bad splits on the right from the first question and \(b\) bad splits on the right from the second question, the total amount of bad splits on the right is just the bigger of those numbers, \(max(a, b)\). Even if we can't combine the sums, we can combine the lists.</p>
+  <p>After we combine our lists we might get sums exceeding the number of seats, but the same limit we used to handle an edge case will handle this for us by simply marking every split as bad.</p>
+  <p>Once we know how to count the splits for each question and why it works, and how to combine those partial results, the full algorithm is rather simple:</p>
+  <pre class=" language-python"><code class=" language-python">
+  n, m = [int(x) for x in input().split()]
+  a = [int(x) for x in input().split()]
+
+
+  def decode_answer(question_number, encoded_answer):
+      return bool((encoded_answer >> question_number) % 2)
+
+  def count_bad_splits(answers):
+      counts = []
+      section_start = 0
+      range_start = 1
+
+
+      while section_start < len(answers):
+          section_end = section_start + 1
+          while section_end < len(answers) and answers[section_start] == answers[section_end]:
+              section_end += 1
+
+          if section_end == len(answers) and answers[0] == answers[-1] and len(counts) > 0:
+              range_start += counts[0]
+
+          counts += reversed(range(range_start, range_start + section_end - section_start))
+          section_start = section_end
+
+      if counts[0] == len(answers):
+          return len(answers) * [0]
+
+      return counts
+
+
+  total_bad_splits_right = m * [0]
+  total_bad_splits_left = m * [0]
+
+  for question_number in range(n):
+      answers = [decode_answer(question_number, encoded_answer) for encoded_answer in a]
+
+      bad_splits_right = count_bad_splits(answers)
+      bad_splits_left_tangled = list(reversed(count_bad_splits(list(reversed(answers)))))
+      bad_splits_left = [bad_splits_left_tangled[-1]] + bad_splits_left_tangled[:-1]
+
+      total_bad_splits_right = [max(a, b) for a, b in zip(total_bad_splits_right, bad_splits_right)]
+      total_bad_splits_left = [max(a, b) for a, b in zip(total_bad_splits_left, bad_splits_left)]
+
+
+  total_bad_splits = sum([min(a + b, m - 1) for a, b in zip(total_bad_splits_left, total_bad_splits_right)]) // 2
+  good_splits = m * (m - 1) // 2 - total_bad_splits
+
+
+  print(good_splits)
+
+  </code></pre>
+  <p>The complexity is \(O(mn)\), if you consider that the number of questions is not very big \(n \le 30\) we have a linear solution.</p>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" async></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/prism.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.15.0/components/prism-python.min.js"></script>
+</body>
+</html>
